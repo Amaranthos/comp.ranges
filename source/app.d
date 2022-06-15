@@ -22,7 +22,7 @@ auto datesInYear(int year) pure
 auto byMonth(InputRange)(InputRange dates) pure nothrow
 if (isDateRange!InputRange)
 {
-	return dates.chunkBy!(a => a.month());
+	return dates.chunkBy!((a, b) => a.month == b.month);
 }
 
 unittest
@@ -93,11 +93,7 @@ auto formatYear(int year, int monthsPerRow)
 }
 
 auto formatMonths(Range)(Range months) pure nothrow
-
-
-
-		if (isInputRange!Range && isInputRange!(ElementType!Range) && is(
-			ElementType!(ElementType!Range) == Date))
+if (isInputRange!Range && isDateRange!(ElementType!Range))
 {
 	return months.map!formatMonth;
 }
@@ -118,8 +114,7 @@ string monthTitle(Month month) pure nothrow
 	return spaces(before) ~ name ~ spaces(after);
 }
 
-auto formatMonth(Range)(Range monthDays)
-		if (isInputRange!Range && is(ElementType!Range == Date))
+auto formatMonth(Range)(Range monthDays) if (isDateRange!Range)
 in (!monthDays.empty)
 in (monthDays.front.day == 1)
 {
@@ -127,11 +122,7 @@ in (monthDays.front.day == 1)
 }
 
 auto formatWeek(Range)(Range weeks) pure nothrow
-
-
-
-		if (isInputRange!Range && isInputRange!(ElementType!Range) && is(
-			ElementType!(ElementType!Range) == Date))
+if (isInputRange!Range && isDateRange!(ElementType!Range))
 {
 	struct WeekStrings
 	{
@@ -189,115 +180,6 @@ unittest
  12 13 14 15 16 17 18
  19 20 21 22 23 24 25
  26 27 28 29 30 31   `, jan2020.format!"\n%s");
-}
-
-auto chunkBy(alias attrFun, Range)(Range r)
-		if (isInputRange!Range && is(typeof(
-			attrFun(ElementType!Range.init) == attrFun(ElementType!Range.init))))
-{
-	import std.functional : unaryFun;
-
-	alias attr = unaryFun!attrFun;
-	alias AttrType = typeof(attr(r.front));
-
-	static struct Chunk
-	{
-		private Range r;
-		private AttrType curAttr;
-
-		@property bool empty()
-		{
-			return r.empty || !(curAttr == attr(r.front));
-		}
-
-		@property ElementType!Range front()
-		{
-			return r.front;
-		}
-
-		void popFront()
-		in (!r.empty)
-		{
-			r.popFront();
-		}
-	}
-
-	static struct ChunkBy
-	{
-		private Range r;
-		private AttrType lastAttr;
-
-		this(Range _r)
-		{
-			r = _r;
-			if (!empty)
-				lastAttr = attr(r.front);
-		}
-
-		@property bool empty()
-		{
-			return r.empty;
-		}
-
-		@property auto front()
-		in (!r.empty)
-		{
-			return Chunk(r, lastAttr);
-		}
-
-		void popFront()
-		in (!r.empty)
-		{
-			while (!r.empty && attr(r.front) == lastAttr)
-				r.popFront();
-			if (!r.empty)
-				lastAttr = attr(r.front);
-		}
-
-		// static if (isForwardRange!Range)
-		// {
-		// 	@property ChunkBy save()
-		// 	{
-		// 		// ChunkBy copy;
-		// 		// 		copy.r = r.save;
-		// 		// 		copy.lastAttr = lastAttr;
-		// 		return copy;
-		// 	}
-		// }
-	}
-
-	return ChunkBy(r);
-}
-
-unittest
-{
-	import std.algorithm : equal;
-
-	auto range = [[1, 1], [1, 1], [1, 2], [2, 2], [2, 3], [2, 3], [3, 3]];
-
-	auto byX = range.chunkBy!(a => a[0]);
-	auto expectedX = [
-		[[1, 1], [1, 1], [1, 2]], [[2, 2], [2, 3], [2, 3]], [[3, 3]]
-	];
-
-	foreach (e; byX)
-	{
-		assert(!expectedX.empty);
-		assert(e.equal(expectedX.front));
-		expectedX.popFront();
-	}
-
-	auto byY = range.chunkBy!(a => a[1]);
-	auto expectedY = [
-		[[1, 1], [1, 1]], [[1, 2], [2, 2]], [[2, 3], [2, 3], [3, 3]]
-	];
-
-	foreach (e; byY)
-	{
-		assert(!expectedY.empty);
-		assert(e.equal(expectedY.front));
-		expectedY.popFront();
-	}
 }
 
 string spaces(size_t n) pure nothrow
