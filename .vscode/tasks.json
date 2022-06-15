@@ -1,0 +1,35 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "dub",
+      "run": true,
+      "cwd": "${workspaceFolder}",
+      "compiler": "$current",
+      "archType": "$current",
+      "buildType": "$current",
+      "configuration": "$current",
+      "problemMatcher": ["$dmd"],
+      "group": {
+        "isDefault": true,
+        "kind": "build"
+      },
+      "label": "dub: Run comp-ranges"
+    },
+    {
+      "type": "dub",
+      "test": true,
+      "cwd": "${workspaceFolder}",
+      "compiler": "$current",
+      "archType": "$current",
+      "buildType": "$current",
+      "configuration": "$current",
+      "problemMatcher": ["$dmd"],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "label": "dub: Test comp-ranges"
+    }
+  ]
+}
