@@ -3,13 +3,31 @@ import std.datetime;
 import std.format;
 import std.stdio;
 import std.range;
+import std.conv;
 
 enum COLS_PER_DAY = 3;
 enum COLS_PER_WEEK = 7 * COLS_PER_DAY;
 
 void main()
 {
-	formatYear(2020, 3).writeln;
+	formatYear(2022, 3).writeln;
+}
+
+auto formatYear(int year, int monthsPerRow)
+{
+	enum colSpacing = 1;
+
+	return year
+		.datesInYear
+		.byMonth
+		.chunks(monthsPerRow)
+		.map!(r =>
+				r.formatMonths
+				.array
+				.pasteBlocks(colSpacing)
+				.join("\n")
+		)
+		.join("\n\n");
 }
 
 auto datesInYear(int year) pure
@@ -17,6 +35,11 @@ auto datesInYear(int year) pure
 	return Date(year, 1, 1)
 		.recurrence!((a, n) => a[n - 1] + 1.days)
 		.until!(a => a.year > year);
+}
+
+template isDateRange(R)
+{
+	enum isDateRange = isInputRange!R && is(ElementType!R : Date);
 }
 
 auto byMonth(InputRange)(InputRange dates) pure nothrow
@@ -38,6 +61,40 @@ unittest
 	while (++month <= 12);
 
 	assert(months.empty);
+}
+
+auto formatMonths(Range)(Range months) pure nothrow
+if (isInputRange!Range && isDateRange!(ElementType!Range))
+{
+	return months.map!formatMonth;
+}
+
+auto formatMonth(Range)(Range monthDays) if (isDateRange!Range)
+in (!monthDays.empty)
+in (monthDays.front.day == 1)
+{
+	return chain([monthDays.front.month.monthTitle], monthDays.byWeek.formatWeek);
+}
+
+string monthTitle(Month month) pure nothrow
+{
+	static immutable string[] monthNames = [
+		"January", "February", "March", "April", "May", "June",
+		"July", "August", "September", "October", "November", "December"
+	];
+	static assert(monthNames.length == 12);
+
+	auto name = monthNames[month - 1];
+	assert(name.length < COLS_PER_WEEK);
+	auto before = (COLS_PER_WEEK - name.length) / 2;
+	auto after = COLS_PER_WEEK - name.length - before;
+
+	return spaces(before) ~ name ~ spaces(after);
+}
+
+string spaces(size_t n) pure nothrow
+{
+	return std.array.replicate(" ", n);
 }
 
 auto byWeek(InputRange)(InputRange dates) pure nothrow
@@ -63,68 +120,16 @@ if (isDateRange!InputRange)
 			r.popFront();
 			while (!r.empty && r.front.dayOfWeek != DayOfWeek.sun)
 				r.popFront();
-
 		}
 	}
 
 	return ByWeek(dates);
 }
 
-template isDateRange(R)
-{
-	enum isDateRange = isInputRange!R && is(ElementType!R : Date);
-}
-
-auto formatYear(int year, int monthsPerRow)
-{
-	enum colSpacing = 1;
-
-	return year
-		.datesInYear
-		.byMonth
-		.chunks(monthsPerRow)
-		.map!(r =>
-				r.formatMonths
-				.array
-				.pasteBlocks(colSpacing)
-				.join("\n")
-		)
-		.join("\n\n");
-}
-
-auto formatMonths(Range)(Range months) pure nothrow
-if (isInputRange!Range && isDateRange!(ElementType!Range))
-{
-	return months.map!formatMonth;
-}
-
-string monthTitle(Month month) pure nothrow
-{
-	static immutable string[] monthNames = [
-		"January", "February", "March", "April", "May", "June",
-		"July", "August", "September", "October", "November", "December"
-	];
-	static assert(monthNames.length == 12);
-
-	auto name = monthNames[month - 1];
-	assert(name.length < COLS_PER_WEEK);
-	auto before = (COLS_PER_WEEK - name.length) / 2;
-	auto after = COLS_PER_WEEK - name.length - before;
-
-	return spaces(before) ~ name ~ spaces(after);
-}
-
-auto formatMonth(Range)(Range monthDays) if (isDateRange!Range)
-in (!monthDays.empty)
-in (monthDays.front.day == 1)
-{
-	return chain([monthDays.front.month.monthTitle], monthDays.byWeek.formatWeek);
-}
-
 auto formatWeek(Range)(Range weeks) pure nothrow
 if (isInputRange!Range && isDateRange!(ElementType!Range))
 {
-	struct WeekStrings
+	static struct WeekStrings
 	{
 		Range r;
 
@@ -180,11 +185,6 @@ unittest
  12 13 14 15 16 17 18
  19 20 21 22 23 24 25
  26 27 28 29 30 31   `, jan2020.format!"\n%s");
-}
-
-string spaces(size_t n) pure nothrow
-{
-	return std.array.replicate(" ", n);
 }
 
 auto pasteBlocks(Range)(Range ror, int sepWidth)
